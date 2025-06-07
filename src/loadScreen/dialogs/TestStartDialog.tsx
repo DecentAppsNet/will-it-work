@@ -14,6 +14,7 @@ function TestStartDialog(props:Props) {
 
   return (
     <ModalDialog title="Prepare to Load LLM" isOpen={isOpen}>
+      <p>Hi.</p>
       <DialogFooter><DialogButton text="Start" onClick={onConfirm} isPrimary/></DialogFooter>
     </ModalDialog>
   );
