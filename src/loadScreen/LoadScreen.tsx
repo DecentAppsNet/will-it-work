@@ -1,10 +1,9 @@
 import {useState, useEffect} from "react";
 
-import { isServingLocally } from '@/developer/devEnvUtil';
 import styles from './LoadScreen.module.css';
 import { init } from "./interactions/initialization";
 import ProgressBar from '@/components/progressBar/ProgressBar';
-import LLMDevPauseDialog from './dialogs/LLMDevPauseDialog';
+import TestStartDialog from './dialogs/TestStartDialog';
 import TopBar from '@/components/topBar/TopBar';
 
 type Props = {
@@ -13,13 +12,13 @@ type Props = {
 
 function LoadScreen(props:Props) {
   const [percentComplete, setPercentComplete] = useState(0);
-  const [needLlmLoadConfirmation, setNeedLlmLoadConfirmation] = useState(isServingLocally());
+  const [needLlmLoadConfirmation, setNeedLlmLoadConfirmation] = useState(true);
   const [modalDialogName, setModalDialogName] = useState<string|null>(null);
   const [currentTask, setCurrentTask] = useState('Loading');
   const {onComplete} = props;
   
   useEffect(() => {
-    if (needLlmLoadConfirmation) { setModalDialogName(LLMDevPauseDialog.name); return; }
+    if (needLlmLoadConfirmation) { setModalDialogName(TestStartDialog.name); return; }
     init(setPercentComplete, setCurrentTask).then((isInitialized) => { if (isInitialized) onComplete(); });
   }, [needLlmLoadConfirmation, setPercentComplete, setCurrentTask]);
   
@@ -33,8 +32,8 @@ function LoadScreen(props:Props) {
         </div>
       </div>
 
-      <LLMDevPauseDialog 
-        isOpen={modalDialogName === LLMDevPauseDialog.name} 
+      <TestStartDialog
+        isOpen={modalDialogName === TestStartDialog.name} 
         onConfirm={() => { setModalDialogName(null); setNeedLlmLoadConfirmation(false) }} 
       />
     </div>
