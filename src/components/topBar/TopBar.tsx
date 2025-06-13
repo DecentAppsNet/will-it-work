@@ -6,9 +6,7 @@ const appLinks = [
   { description: "Support", url: "TODO ADD LINK" }
 ];
 
-// It's a nice thing if you replace "undefined" below with your name as a string, but you don't have to.
-// Don't be shy about claiming credit for your work. The DecentBar wants to see you shine!
-const contributorText = undefined; 
+const contributorText = "Erik Hermansen"; 
 
 function TopBar() {
   return <DecentBar appName="Will It Work?" appLinks={appLinks} contributorText={contributorText}/>

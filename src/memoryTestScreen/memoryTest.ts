@@ -137,7 +137,7 @@ export async function findMaxGpuAllocation(onGpuAllocationStatus:GpuAllocationSt
       console.log(`Copy took ${copyTime} ms for ${allocChunkSize} bytes.`);
       if (copyTime > REASONABLE_RAM_COPY_TIME_MS) {
         status.code = GpuAllocationStatusType.COPY_TOO_SLOW;
-        status.errorInfo = `Copy took too long (${copyTime} ms) for ${allocChunkSize} bytes.`;
+        status.errorInfo = `Copy took too long (${copyTime} ms for ${allocChunkSize} bytes).`;
         break; 
       }
 

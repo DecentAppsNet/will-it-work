@@ -1,0 +1,74 @@
+.container {
+  display: flex;
+  width: 100%;
+  margin-bottom: 1vh;
+  margin-top: 1vh;
+}
+
+.statusIcon {
+  width: 13vh;
+  height: 13vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 6vh;
+  transition: background-color 0.5s ease, color 0.5s ease;
+}
+
+.statusIcon.hidden {
+  background-color: #eee;
+  color: white;
+  border-radius: 50%;
+}
+
+.statusIcon.success {
+  background-color: #97531b;
+  color: white;
+  border-radius: 50%;
+}
+
+.statusIcon.success::before {
+  content: '\2714'; /* Unicode checkmark character */
+}
+
+.statusIcon.failure {
+  background-color: red;
+  color: white;
+  border-radius: 50%;
+}
+
+.statusIcon.failure::before {
+  content: '\2716'; /* Unicode cross character */
+}
+
+.statusIcon.unknown {
+  background-color: gray;
+  color: white;
+  border-radius: 50%;
+}
+
+.statusIcon.unknown::before {
+  content: '\003F'; /* Unicode question mark character */
+}
+
+.description {
+  flex: 1;
+  padding-left: 3vh;
+}
+
+.summary {
+  font-weight: bold;
+  font-size: 1.4rem; 
+  margin-bottom: 0.5vh;
+}
+
+.subItems {
+  list-style-type: disc;
+  padding-left: 1.1vh; 
+  margin:0;
+}
+
+.subItem {
+  font-size: .8rem;
+  margin-bottom: 0vh;
+}

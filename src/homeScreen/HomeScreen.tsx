@@ -1,50 +1,62 @@
 import { useEffect, useState } from "react";
 
-import WaitingEllipsis from '@/components/waitingEllipsis/WaitingEllipsis';
 import styles from './HomeScreen.module.css';
-import eyesPng from './images/eyes.png';
-import { init } from "./interactions/initialization";
-import { GENERATING, submitPrompt } from "./interactions/prompt";
-import ContentButton from '@/components/contentButton/ContentButton';
-import LoadScreen from '@/loadScreen/LoadScreen';
 import TopBar from '@/components/topBar/TopBar';
+import { init } from "./interactions/initialization";
+import CategoryCheck from "./CategoryCheck";
+import ContentButton from "@/components/contentButton/ContentButton";
+import { setScreen } from "@/router/Router";
+import MemoryTestScreen from "@/memoryTestScreen/MemoryTestScreen";
+
+let firstVisitComplete = false;
 
 function HomeScreen() {
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [prompt, setPrompt] = useState<string>('');
-  const [responseText, setResponseText] = useState<string>('');
-  const [eyesState, setEyesState] = useState<string>('');
+  const [visibleCategories, setVisibleCategories] = useState<number>(0);
   
   useEffect(() => {
-    if (isLoading) return;
-
-    init().then(isLlmConnected => { 
-      if (!isLlmConnected) setIsLoading(true);
+    init().then(() => {
+      if (firstVisitComplete) { setVisibleCategories(3); return; }
+      setTimeout(() => setVisibleCategories(1), 1000);
+      setTimeout(() => setVisibleCategories(2), 2000);
+      setTimeout(() => { 
+        setVisibleCategories(3);
+        firstVisitComplete = true;
+      }, 3000);
     });
-  }, [isLoading]);
+  }, []);
 
-  if (isLoading) return <LoadScreen onComplete={() => setIsLoading(false)} />;
+  const footerContent = visibleCategories >= 3 ? (
+    <>
+      <ContentButton text='Back to App' onClick={() => {}} />
+      <ContentButton text='Run Memory Test' onClick={() => {setScreen(MemoryTestScreen.name)}} />
+    </>
+  ) : null;
 
-  function _onKeyDown(e:React.KeyboardEvent<HTMLInputElement>) {
-    if(e.key === 'Enter' && prompt !== '') submitPrompt(prompt, setPrompt, _onRespond);
-  }
-
-  function _onRespond(text:string) {
-    setResponseText(text);
-    const stateNo = Math.floor(Math.random() * 5) + 1;
-    setEyesState(styles[`eyesState${stateNo}`]);
-  }
-
-  const response = responseText === GENERATING ? <p>hmmm<WaitingEllipsis/></p> : <p>{responseText}</p>
-  
   return (
     <div className={styles.container}>
-      <TopBar />
+      <TopBar/>
+
       <div className={styles.content}>
-        <img src={eyesPng} alt="Eyes" className={`${styles.eyes} ${eyesState}`}/>
-        <p><input type="text" className={styles.promptBox} placeholder="Say anything to this screen" value={prompt} onKeyDown={_onKeyDown} onChange={(e) => setPrompt(e.target.value)}/>
-        <ContentButton text="Send" onClick={() => submitPrompt(prompt, setPrompt, _onRespond)} /></p>
-        {response}
+        <h1>How well will your device work with local LLMs?</h1>
+
+        <CategoryCheck summary="Your browser has access to the right features." status="success" subItems={[
+          "WebGPU is supported",
+          "WebGL is supported",
+          "Storage API is supported"
+        ]} visible={visibleCategories >= 1}/>
+
+        <CategoryCheck summary="You have enough disk space to store any available model." status="success" subItems={[
+          "852 GB of free disk space available",
+          "Any model available via WebLLM can be downloaded"
+        ]} visible={visibleCategories >= 2}/>
+
+        <CategoryCheck summary="Not sure how much video memory you have." status="unknown" subItems={[
+          "You can run a one-time memory test to determine available memory for this session and others."
+        ]} visible={visibleCategories >= 3}/>
+      </div>
+      
+      <div className={styles.footer}>
+        { footerContent }
       </div>
     </div>
   );
