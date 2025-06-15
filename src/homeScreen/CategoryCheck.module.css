@@ -31,13 +31,13 @@
   content: '\2714'; /* Unicode checkmark character */
 }
 
-.statusIcon.failure {
-  background-color: red;
+.statusIcon.failed {
+  background-color: #ff5800;
   color: white;
   border-radius: 50%;
 }
 
-.statusIcon.failure::before {
+.statusIcon.failed::before {
   content: '\2716'; /* Unicode cross character */
 }
 

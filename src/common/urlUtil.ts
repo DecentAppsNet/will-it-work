@@ -24,3 +24,8 @@ export function baseUrl(path: string) {
   const basePath = _getBasePath();
   return `${basePath}${path}`;
 }
+
+// Create URL based on the same scheme/host/port as the current page, but with the given app name as the first path segment.
+export function createAppUrl(appName:string):string {
+  return new URL(`${window.location.origin}/${appName}/`).toString();
+}
