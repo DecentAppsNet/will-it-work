@@ -1,8 +1,8 @@
-import { formatByteCount, GIGABYTE, overrideSystemMemory } from "@/common/memoryUtil";
+import { formatByteCount, GIGABYTE } from "@/common/memoryUtil";
 import CategoryCheckInfo from "../types/CategoryCheckInfo"
-import { hasStorageSupport, hasWasmSupport, hasWebGpuSupport, overrideStorageSupport, overrideWasmSupport, overrideWebGpuSupport } from "@/common/featureUtil";
-import { estimateAvailableStorage, overrideAvailableStorage } from "@/common/storageUtil";
-import { applyTestOverrides, isServingLocally } from "@/developer/devEnvUtil";
+import { hasStorageSupport, hasWasmSupport, hasWebGpuSupport } from "@/common/featureUtil";
+import { estimateAvailableStorage } from "@/common/storageUtil";
+import { applyTestOverrides } from "@/developer/devEnvUtil";
 import { resetConversation } from "@/memoryTestScreen/interactions/conversation";
 
 export type InitResults = {

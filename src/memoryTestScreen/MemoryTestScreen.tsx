@@ -6,11 +6,10 @@ import ContentButton from '@/components/contentButton/ContentButton';
 import { setScreen } from '@/router/Router';
 import HomeScreen from '@/homeScreen/HomeScreen';
 import ProgressBar from '@/components/progressBar/ProgressBar';
-import { init } from './interactions/initialization';
+import { runTest, continueToTestResults } from './interactions/test';
 import { GpuAllocationStatus, GpuAllocationStatusCode } from './memoryTest';
 import { byteCountToGb } from '@/common/memoryUtil';
-import { continueToTestResults } from './interactions/continue';
-import { nextMessage } from './interactions/conversation';
+import { getMessage } from './interactions/conversation';
 
 const MESSAGE_CHECK_INTERVAL_MS = 200;
 
@@ -30,8 +29,8 @@ function MemoryTestScreen() {
 
   useEffect(() => {
     cancelSignaled = false;
-    init(_onNextStatus).then((finalStatus) => {
-      continueToTestResults(finalStatus);
+    runTest(_onNextStatus).then((finalStatus) => {
+      if (finalStatus) continueToTestResults(finalStatus);
     });
   }, []);
 
@@ -40,7 +39,7 @@ function MemoryTestScreen() {
     return () => clearTimeout(timer);
   }, [frameNo]);
 
-  const conversationMessage = gpuAllocationStatus ? nextMessage(gpuAllocationStatus) : '';
+  const conversationMessage = gpuAllocationStatus ? getMessage(gpuAllocationStatus) : '';
 
   const footer =
     <>

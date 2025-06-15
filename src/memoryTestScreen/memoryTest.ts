@@ -48,6 +48,10 @@ export enum GpuAllocationStatusCode {
 export type GpuAllocationStatus = {
   totalAllocatedSize:number;
   maxAttemptSize:number;
+  slowestCopyRate:number;
+  averageCopyRate:number;
+  fastestCopyRate:number;
+  availableStorage:number;
   code:GpuAllocationStatusCode;
   errorInfo?: string; // optional for additional error context
 }
@@ -55,15 +59,29 @@ export type GpuAllocationStatus = {
 // The callback should return false to stop the allocation process, e.g. user clicked cancel. True to keep going.
 export type GpuAllocationStatusCallback = (status:GpuAllocationStatus) => boolean;
 
+function _setCopyRateMetrics(copyRates:number[], status:GpuAllocationStatus):void {
+  if (copyRates.length === 0) return;
+  status.slowestCopyRate = Math.max(...copyRates);
+  status.fastestCopyRate = Math.min(...copyRates);
+  status.averageCopyRate = copyRates.reduce((sum, rate) => sum + rate, 0) / copyRates.length;
+  status.averageCopyRate = Math.round(status.averageCopyRate * 100) / 100; // round to 2 decimal places
+  console.log(`Copy rates: ${copyRates.length} samples, slowest: ${status.slowestCopyRate}, fastest: ${status.fastestCopyRate}, average: ${status.averageCopyRate}`);
+}
+
 export async function findMaxGpuAllocation(maxAttemptSize:number, onGpuAllocationStatus:GpuAllocationStatusCallback):Promise<GpuAllocationStatus> {
   
   const REASONABLE_RAM_COPY_TIME_MS = 5000;
   const status:GpuAllocationStatus = {
     totalAllocatedSize:0,
+    availableStorage:await estimateAvailableStorage() || 0,
     code:GpuAllocationStatusCode.INITIALIZING,
-    maxAttemptSize
+    maxAttemptSize,
+    slowestCopyRate:-1,
+    averageCopyRate:-1,
+    fastestCopyRate:-1
   }
 
+  let copyRates:number[] = [];
   let allBuffers:GPUBuffer[] = [];
   try {
     const gpu:GPU|undefined  = window.navigator.gpu;
@@ -101,7 +119,8 @@ export async function findMaxGpuAllocation(maxAttemptSize:number, onGpuAllocatio
     let bufferNo = 0;
     while(status.totalAllocatedSize < maxAttemptSize) {
       // Check if we're getting low on disk storage, perhaps as a consequence of allocating via unified memory architecture into virtual memory.
-      if (await estimateAvailableStorage() < OS_VIRTUAL_MEMORY_BUFFER) {
+      status.availableStorage = await estimateAvailableStorage();
+      if (status.availableStorage < OS_VIRTUAL_MEMORY_BUFFER) {
         status.code = GpuAllocationStatusCode.LOW_STORAGE_AVAILABILITY;
         status.errorInfo = `Available storage is low, stopping at ${status.totalAllocatedSize} bytes.`;
         break;
@@ -149,7 +168,8 @@ export async function findMaxGpuAllocation(maxAttemptSize:number, onGpuAllocatio
 
       // If copy takes too long, I'm likely using virtual memory with an integrated GPU. Not necessarily a problem, 
       // but it it's too slow, we should stop and use the total for memory that was accessed faster.
-      console.log(`Copy took ${copyTime} ms for ${allocChunkSize} bytes.`);
+      copyRates.push(allocChunkSize / copyTime);
+      _setCopyRateMetrics(copyRates, status);
       if (copyTime > REASONABLE_RAM_COPY_TIME_MS) {
         status.code = GpuAllocationStatusCode.COPY_TOO_SLOW;
         status.errorInfo = `Copy took too long (${copyTime} ms for ${allocChunkSize} bytes).`;
