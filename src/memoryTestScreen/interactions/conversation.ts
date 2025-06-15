@@ -134,3 +134,7 @@ export function resetConversation():void {
   startConversationTime = Date.now();
   lastAllocatedSize = 0;
 }
+
+export function getFinalMessage(_gpuAllocationStatus:GpuAllocationStatus):string {
+  return `Anyhow... we're done testing!`;
+}

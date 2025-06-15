@@ -3,13 +3,11 @@ import { useEffect, useState } from 'react';
 import TopBar from '@/components/topBar/TopBar';
 import styles from './MemoryTestScreen.module.css';
 import ContentButton from '@/components/contentButton/ContentButton';
-import { setScreen } from '@/router/Router';
-import HomeScreen from '@/homeScreen/HomeScreen';
 import ProgressBar from '@/components/progressBar/ProgressBar';
-import { runTest, continueToTestResults } from './interactions/test';
-import { GpuAllocationStatus, GpuAllocationStatusCode } from './memoryTest';
+import { runTest, continueAfterTestCompletion } from './interactions/test';
+import { GpuAllocationStatus } from './memoryTest';
 import { byteCountToGb } from '@/common/memoryUtil';
-import { getMessage } from './interactions/conversation';
+import { getFinalMessage, getMessage } from './interactions/conversation';
 
 const MESSAGE_CHECK_INTERVAL_MS = 200;
 
@@ -20,17 +18,17 @@ function MemoryTestScreen() {
   const [frameNo, setFrameNo] = useState<number>(0);
   const [gpuAllocationStatus, setGpuAllocationStatus] = useState<GpuAllocationStatus|null>(null);
   const [hasCanceled, setHasCanceled] = useState<boolean>(false);
+  const [hasCompleted, setHasCompleted] = useState<boolean>(false);
 
   function _onNextStatus(status: GpuAllocationStatus):boolean {
     setGpuAllocationStatus(status);
-    if (status.code === GpuAllocationStatusCode.USER_CANCELED) setScreen(HomeScreen.name);
     return !cancelSignaled;
   }
 
   useEffect(() => {
     cancelSignaled = false;
     runTest(_onNextStatus).then((finalStatus) => {
-      if (finalStatus) continueToTestResults(finalStatus);
+      if (finalStatus) continueAfterTestCompletion(finalStatus, cancelSignaled, setHasCompleted);
     });
   }, []);
 
@@ -39,7 +37,11 @@ function MemoryTestScreen() {
     return () => clearTimeout(timer);
   }, [frameNo]);
 
-  const conversationMessage = gpuAllocationStatus ? getMessage(gpuAllocationStatus) : '';
+  const conversationMessage = gpuAllocationStatus 
+    ? hasCompleted 
+      ? getFinalMessage(gpuAllocationStatus)
+      : getMessage(gpuAllocationStatus) 
+    : '';
 
   const footer =
     <>
