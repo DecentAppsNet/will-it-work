@@ -1,9 +1,11 @@
-import { formatByteCount, GIGABYTE } from "@/common/memoryUtil";
+import { bytesPerMsecToGbPerSec, formatByteCount, GIGABYTE } from "@/common/memoryUtil";
 import CategoryCheckInfo from "../types/CategoryCheckInfo"
 import { hasStorageSupport, hasWasmSupport, hasWebGpuSupport } from "@/common/featureUtil";
 import { estimateAvailableStorage } from "@/common/storageUtil";
 import { applyTestOverrides } from "@/developer/devEnvUtil";
 import { resetConversation } from "@/memoryTestScreen/interactions/conversation";
+import { getDeviceCapabilities } from "@/persistence/deviceCapabilities";
+import { GpuAllocationStatusCode } from "@/memoryTestScreen/memoryTest";
 
 export type InitResults = {
   categoryChecks:CategoryCheckInfo[],
@@ -93,8 +95,51 @@ async function _checkDiskSpace():Promise<CategoryCheckInfo> {
 
   return result;
 }
-function _checkGpuMemory(areBrowserFeaturesAvailable:boolean, isEnoughDiskStorageAvailable:boolean):CategoryCheckInfo {
+
+// If timestamp is today, returns "Today at 12:00 PM"
+// Otherwise, returns short date format like "10/12/2023".
+function _describeTime(timestamp:number):string {
+  if (!timestamp) return "Unknown time";
+  const date = new Date(timestamp);
+  const today = new Date();
+  if (date.getDate() === today.getDate() && date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear()) {
+    return `today at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  }
+  return date.toLocaleDateString();
+}
+
+function _describeLimit(statusCode:GpuAllocationStatusCode):string {
+  switch (statusCode) {
+    case GpuAllocationStatusCode.MAX_ATTEMPT_SIZE_REACHED: return "The test reached the maximum allocation size.";
+    case GpuAllocationStatusCode.ALLOCATION_FAILED: return "The test discovered the limit by way of allocation failure.";
+    case GpuAllocationStatusCode.COPY_FAILED: return "The test discovered the limit when copying failed after an allocation.";
+    case GpuAllocationStatusCode.COPY_TOO_SLOW: return "The test discovered the limit when copying was too slow after an allocation. (Typically due to use of virtual memory in unified memory architectures.)";
+    case GpuAllocationStatusCode.VALIDATION_ERROR: return "The test discovered the limit when validation failed after an allocation.";
+    case GpuAllocationStatusCode.INTERNAL_ERROR: return "The test discovered the limit when an internal error occurred during the test.";
+    case GpuAllocationStatusCode.OOM_ERROR: return "The test discovered the limit when an out-of-memory error occurred during the test.";
+    case GpuAllocationStatusCode.LOW_STORAGE_AVAILABILITY: return "The test aborted early due to low storage availability. You might want to run it again after freeing some disk space.";
+    case GpuAllocationStatusCode.USER_CANCELED: return "I think you canceled the test. You might want to run it again.";
+    case GpuAllocationStatusCode.GPU_DRIVER_FAILURE: return "The test discovered the limit when the GPU driver failed during the test.";
+    default: return "The test discovered the limit in an unexpected way - potentially an internal browser error.";
+  }
+}
+
+async function _checkGpuMemory(areBrowserFeaturesAvailable:boolean, isEnoughDiskStorageAvailable:boolean):Promise<CategoryCheckInfo> {
   const subItems:string[] = [];
+
+  const deviceCapabilities = await getDeviceCapabilities();
+  if (deviceCapabilities && deviceCapabilities.maxGpuAllocationSize > 0) {
+    subItems.push(`Based on memory test ran ${_describeTime(deviceCapabilities.lastTestTimestamp)}.`);
+    subItems.push(`Your memory copy rate is ${bytesPerMsecToGbPerSec(deviceCapabilities.memoryCopyRate)} gigabytes per second.`);
+    subItems.push(_describeLimit(deviceCapabilities.lastTestStatusCode));
+    subItems.push(`You can always run the memory test again to update your capabilities.`);
+    return {
+      summary: `You've got ${formatByteCount(deviceCapabilities.maxGpuAllocationSize)} memory available to run an LLM.`,
+      status: "success",
+      subItems,
+      visible: false
+    }
+  }
   
   if (!areBrowserFeaturesAvailable) subItems.push(`Couldn't find browser features needed to run a memory test.`);
   if (!isEnoughDiskStorageAvailable) subItems.push(`Couldn't find disk space needed to run a memory test.`);
@@ -108,26 +153,31 @@ function _checkGpuMemory(areBrowserFeaturesAvailable:boolean, isEnoughDiskStorag
   };
 }
 
-export async function init():Promise<InitResults> {
-  const categoryChecks:CategoryCheckInfo[] = [];
+let isInitializing = false;
+export async function init():Promise<InitResults|null> {
+  if (isInitializing) return null;
+  isInitializing = true;
+  try {
+    const categoryChecks:CategoryCheckInfo[] = [];
 
-  // Apply developer overrides of system metrics if they've been set in querystring.
-  applyTestOverrides();
+    applyTestOverrides(); // Apply developer overrides of system metrics if they've been set in querystring.
+    resetConversation();
 
-  resetConversation();
+    const browserFeaturesCheck = _checkBrowserFeatures();
+    const areBrowserFeaturesAvailable = browserFeaturesCheck.status === "success";
+    const diskSpaceCheck = await _checkDiskSpace();
+    const isEnoughDiskStorageAvailable = diskSpaceCheck.status === "success";
+    const gpuMemoryCheck = await _checkGpuMemory(areBrowserFeaturesAvailable, isEnoughDiskStorageAvailable);
+    
+    categoryChecks.push(browserFeaturesCheck);
+    categoryChecks.push(diskSpaceCheck);
+    categoryChecks.push(gpuMemoryCheck);
 
-  const browserFeaturesCheck = _checkBrowserFeatures();
-  const areBrowserFeaturesAvailable = browserFeaturesCheck.status === "success";
-  const diskSpaceCheck = await _checkDiskSpace();
-  const isEnoughDiskStorageAvailable = diskSpaceCheck.status === "success";
-  const gpuMemoryCheck = _checkGpuMemory(areBrowserFeaturesAvailable, isEnoughDiskStorageAvailable);
-  
-  categoryChecks.push(browserFeaturesCheck);
-  categoryChecks.push(diskSpaceCheck);
-  categoryChecks.push(gpuMemoryCheck);
+    const fromAppName = new URLSearchParams(window.location.search).get('fromAppName') || null;
 
-  const fromAppName = new URLSearchParams(window.location.search).get('fromAppName') || null;
-
-  const disableMemoryTest = !areBrowserFeaturesAvailable || !isEnoughDiskStorageAvailable;
-  return { categoryChecks, disableMemoryTest, fromAppName };
+    const disableMemoryTest = !areBrowserFeaturesAvailable || !isEnoughDiskStorageAvailable;
+    return { categoryChecks, disableMemoryTest, fromAppName };
+  } finally {
+    isInitializing = false;
+  }
 }

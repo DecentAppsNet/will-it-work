@@ -166,9 +166,10 @@ export async function deleteDatabase():Promise<void> {
   });
 }
 
-async function _getRecordByKey(key:string):Promise<KeyValueRecord> {
+async function _getRecordByKey(key:string):Promise<KeyValueRecord|null> {
   const db = await _open(DB_NAME, SCHEMA);
   const record = await _get(db, KEY_VALUE_STORE, key) as KeyValueRecord;
+  if (!record) return null; // No record found.
   if (record.appDataVersion === APP_DATA_VERSION) return record;
   if (record.appDataVersion > APP_DATA_VERSION) throw new Error(`Record at ${key} is v${record.appDataVersion} while app only knows versions up to v${APP_DATA_VERSION}.`); // TODO - need to surface this to UI to trigger a reload, and also handle the case where reloading doesn't fix it.
   _upgradeRecord(record);
@@ -179,10 +180,10 @@ async function _getRecordByKey(key:string):Promise<KeyValueRecord> {
 
 async function _setFieldValue(key:string, fieldName:string, fieldValue:any, mimeType:string) {
   const db = await _open(DB_NAME, SCHEMA);
-  const record = await _getRecordByKey(key)
-    ?? { key } as KeyValueRecord;
+  const record = await _getRecordByKey(key) ?? { key } as KeyValueRecord;
   (record as any)[fieldName] = fieldValue;
   record.path = keyToPath(key);
+  record.appDataVersion = APP_DATA_VERSION;
   record.mimeType = mimeType;
   record.lastModified = Date.now();
   await _put(db, KEY_VALUE_STORE, record);

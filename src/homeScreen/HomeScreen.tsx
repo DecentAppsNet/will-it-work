@@ -19,6 +19,7 @@ function HomeScreen() {
   
   useEffect(() => {
     init().then((initResults) => {
+      if (!initResults) return;
       const { categoryChecks, fromAppName:nextFromAppName } = initResults;
       setIsMemoryTestDisabled(initResults.disableMemoryTest);
       setFromAppName(nextFromAppName);
@@ -36,12 +37,15 @@ function HomeScreen() {
 
   if (categories.length === 0) return null; // Better to not render anything until I have the category data, which affects layout.
 
+  const runMemoryTestText = categories[2].status === 'success'
+    ? 'Run Memory Test Again'
+    : 'Run Memory Test';
   const backToAppButton = !fromAppName ? null :
     <ContentButton text={`Return to App`} onClick={() => {window.location.href = createAppUrl(fromAppName) }} />;
   const footerContent = categories.every(c => c.visible) ? (
     <>
       {backToAppButton}
-      <ContentButton text='Run Memory Test' onClick={() => {setScreen(MemoryTestScreen.name)}} disabled={isMemoryTestDisabled} />
+      <ContentButton text={runMemoryTestText} onClick={() => {setScreen(MemoryTestScreen.name)}} disabled={isMemoryTestDisabled} />
     </>
   ) : null;
 

@@ -49,8 +49,8 @@ function MemoryTestScreen() {
     </>;
 
   const explanationText = hasCanceled
-    ? <p>Freeing memory and canceling the test...</p>
-    : <p>{conversationMessage}</p>;
+    ? <p className={styles.statusText}>Freeing memory and canceling the test...</p>
+    : <p className={styles.statusText}>{conversationMessage}</p>;
   const content = gpuAllocationStatus === null
     ? <p>Initializing memory test...</p>
     : <>

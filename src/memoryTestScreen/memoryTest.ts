@@ -41,6 +41,7 @@ export enum GpuAllocationStatusCode {
   INTERNAL_ERROR = 'Internal error',
   OOM_ERROR = 'Out-of-memory error',
   LOW_STORAGE_AVAILABILITY = 'Low storage availability',
+  GPU_DRIVER_FAILURE = 'GPU driver failure',
   USER_CANCELED = 'Allocation canceled by user',
   UNEXPECTED_ERROR = 'Unexpected error'
 }
@@ -65,7 +66,6 @@ function _setCopyRateMetrics(copyRates:number[], status:GpuAllocationStatus):voi
   status.fastestCopyRate = Math.min(...copyRates);
   status.averageCopyRate = copyRates.reduce((sum, rate) => sum + rate, 0) / copyRates.length;
   status.averageCopyRate = Math.round(status.averageCopyRate * 100) / 100; // round to 2 decimal places
-  console.log(`Copy rates: ${copyRates.length} samples, slowest: ${status.slowestCopyRate}, fastest: ${status.fastestCopyRate}, average: ${status.averageCopyRate}`);
 }
 
 export async function findMaxGpuAllocation(maxAttemptSize:number, onGpuAllocationStatus:GpuAllocationStatusCallback):Promise<GpuAllocationStatus> {
@@ -118,6 +118,8 @@ export async function findMaxGpuAllocation(maxAttemptSize:number, onGpuAllocatio
     
     let bufferNo = 0;
     while(status.totalAllocatedSize < maxAttemptSize) {
+      console.log(status);
+
       // Check if we're getting low on disk storage, perhaps as a consequence of allocating via unified memory architecture into virtual memory.
       status.availableStorage = await estimateAvailableStorage();
       if (status.availableStorage < OS_VIRTUAL_MEMORY_BUFFER) {
@@ -145,7 +147,14 @@ export async function findMaxGpuAllocation(maxAttemptSize:number, onGpuAllocatio
       device.pushErrorScope('validation');
       const beforeCopyTime = performance.now();
       device.queue.submit([commandEncoder.finish()]);
-      await device.queue.onSubmittedWorkDone();
+      try {
+        await device.queue.onSubmittedWorkDone();
+      } catch(e) { 
+        // I'm irritated that the GPU driver can also just throw due to an internal error, and it won't be wrapped by the API's error handling.
+        status.code = GpuAllocationStatusCode.GPU_DRIVER_FAILURE;
+        status.errorInfo = `GPU driver failure during copy: ${e instanceof Error ? e.message : String(e)}`;
+        break;
+      }
       const copyTime = performance.now() - beforeCopyTime;
       const validationError = await device.popErrorScope();
       const internalError = await device.popErrorScope();
@@ -203,6 +212,9 @@ export async function findMaxGpuAllocation(maxAttemptSize:number, onGpuAllocatio
   } catch (e) {
     status.code = GpuAllocationStatusCode.UNEXPECTED_ERROR;
     status.errorInfo = e instanceof Error ? e.message : String(e);
+    console.error(`Unexpected error during GPU allocation test: ${status.errorInfo}`);
+    status.totalAllocatedSize -= GIGABYTE; // This seems like an uncontrolled kind of error, so let's back off a bit.
+    if (status.totalAllocatedSize < 0) status.totalAllocatedSize = 0;
     onGpuAllocationStatus(status);
   } finally {
     while(allBuffers.length > 0) {
