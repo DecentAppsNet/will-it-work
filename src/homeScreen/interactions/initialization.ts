@@ -5,7 +5,7 @@ import { estimateAvailableStorage } from "@/common/storageUtil";
 import { applyTestOverrides } from "@/developer/devEnvUtil";
 import { resetConversation } from "@/memoryTestScreen/interactions/conversation";
 import { getDeviceCapabilities } from "@/persistence/deviceCapabilities";
-import { GpuAllocationStatusCode } from "@/memoryTestScreen/memoryTest";
+import MemoryTestStatusCode from "@/worker/types/MemoryTestStatusCode";
 
 export type InitResults = {
   categoryChecks:CategoryCheckInfo[],
@@ -108,18 +108,18 @@ function _describeTime(timestamp:number):string {
   return date.toLocaleDateString();
 }
 
-function _describeLimit(statusCode:GpuAllocationStatusCode):string {
+function _describeLimit(statusCode:MemoryTestStatusCode):string {
   switch (statusCode) {
-    case GpuAllocationStatusCode.MAX_ATTEMPT_SIZE_REACHED: return "The test reached the maximum allocation size.";
-    case GpuAllocationStatusCode.ALLOCATION_FAILED: return "The test discovered the limit by way of allocation failure.";
-    case GpuAllocationStatusCode.COPY_FAILED: return "The test discovered the limit when copying failed after an allocation.";
-    case GpuAllocationStatusCode.COPY_TOO_SLOW: return "The test discovered the limit when copying was too slow after an allocation. (Typically due to use of virtual memory in unified memory architectures.)";
-    case GpuAllocationStatusCode.VALIDATION_ERROR: return "The test discovered the limit when validation failed after an allocation.";
-    case GpuAllocationStatusCode.INTERNAL_ERROR: return "The test discovered the limit when an internal error occurred during the test.";
-    case GpuAllocationStatusCode.OOM_ERROR: return "The test discovered the limit when an out-of-memory error occurred during the test.";
-    case GpuAllocationStatusCode.LOW_STORAGE_AVAILABILITY: return "The test aborted early due to low storage availability. You might want to run it again after freeing some disk space.";
-    case GpuAllocationStatusCode.USER_CANCELED: return "I think you canceled the test. You might want to run it again.";
-    case GpuAllocationStatusCode.GPU_DRIVER_FAILURE: return "The test discovered the limit when the GPU driver failed during the test.";
+    case MemoryTestStatusCode.MAX_ATTEMPT_SIZE_REACHED: return "The test reached the maximum allocation size.";
+    case MemoryTestStatusCode.ALLOCATION_FAILED: return "The test discovered the limit by way of allocation failure.";
+    case MemoryTestStatusCode.COPY_FAILED: return "The test discovered the limit when copying failed after an allocation.";
+    case MemoryTestStatusCode.COPY_TOO_SLOW: return "The test discovered the limit when copying was too slow after an allocation. (Typically due to use of virtual memory in unified memory architectures.)";
+    case MemoryTestStatusCode.VALIDATION_ERROR: return "The test discovered the limit when validation failed after an allocation.";
+    case MemoryTestStatusCode.INTERNAL_ERROR: return "The test discovered the limit when an internal error occurred during the test.";
+    case MemoryTestStatusCode.OOM_ERROR: return "The test discovered the limit when an out-of-memory error occurred during the test.";
+    case MemoryTestStatusCode.LOW_STORAGE_AVAILABILITY: return "The test aborted early due to low storage availability. You might want to run it again after freeing some disk space.";
+    case MemoryTestStatusCode.USER_CANCELED: return "I think you canceled the test. You might want to run it again.";
+    case MemoryTestStatusCode.GPU_DRIVER_FAILURE: return "The test discovered the limit when the GPU driver failed during the test.";
     default: return "The test discovered the limit in an unexpected way - potentially an internal browser error.";
   }
 }

@@ -1,25 +1,34 @@
 import HomeScreen from "@/homeScreen/HomeScreen";
-import { findMaxGpuAllocation, findMaxSafelyTestableAllocation, GpuAllocationStatus, GpuAllocationStatusCallback } from "../memoryTest"
+import { findMaxSafelyTestableAllocation } from "@/memoryTestScreen/memoryTestUtil";
 import { setScreen } from "@/router/Router";
 import { wait } from "@/common/waitUtil";
 import DeviceCapabilities from "@/persistence/types/DeviceCapabilities";
 import { putDeviceCapabilities } from "@/persistence/deviceCapabilities";
+import { cancelMemoryTest, startMemoryTest } from "@/worker/api";
+import MemoryTestStatusCallback from "@/worker/types/MemoryTestStatusCallback";
+import MemoryTestStatus from "@/worker/types/MemoryTestStatus";
+import MemoryTestStatusCode, { isResolvedStatusCode } from "@/worker/types/MemoryTestStatusCode";
 
 let isRunning = false;
 
-export async function runTest(onGpuAllocationStatus:GpuAllocationStatusCallback):Promise<GpuAllocationStatus|null> {
-  if (isRunning) return null;
+export async function runTest(onMemoryTestStatus:MemoryTestStatusCallback):Promise<void> {
+  if (isRunning) return;
   isRunning = true;
-  try {
-    const maxAttemptSize = await findMaxSafelyTestableAllocation();
-    const finalStatus = await findMaxGpuAllocation(maxAttemptSize, onGpuAllocationStatus);
-    return finalStatus;
-  } finally {
-    isRunning = false;
-  }
+  const maxAttemptSize = await findMaxSafelyTestableAllocation();
+  startMemoryTest(maxAttemptSize, status => {
+    if (isResolvedStatusCode(status.code)) isRunning = false;
+    return onMemoryTestStatus(status);
+  });
 }
 
-export async function continueAfterTestCompletion(status:GpuAllocationStatus, cancelSignaled:boolean, setHasCompleted:(completed:boolean) => void):Promise<void> {
+export function cancelTest(setCancelPending:(canceled:boolean) => void):void {
+  if (!isRunning) return;
+  cancelMemoryTest();
+  setCancelPending(true);
+} 
+
+export async function continueAfterTestCompletion(status:MemoryTestStatus, setHasCompleted:(completed:boolean) => void):Promise<void> {
+  const cancelSignaled = status.code === MemoryTestStatusCode.USER_CANCELED;
   if (cancelSignaled) { setScreen(HomeScreen.name); return; }
 
   const deviceCapabilities:DeviceCapabilities = {

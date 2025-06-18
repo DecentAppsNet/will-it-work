@@ -1,9 +1,9 @@
-import { GpuAllocationStatusCode } from '@/memoryTestScreen/memoryTest';
+import MemoryTestStatusCode from '@/worker/types/MemoryTestStatusCode';
 
 type DeviceCapabilities = {
   memoryCopyRate:number;
   maxGpuAllocationSize:number;
-  lastTestStatusCode:GpuAllocationStatusCode;
+  lastTestStatusCode:MemoryTestStatusCode;
   lastTestTimestamp:number;
 }
 

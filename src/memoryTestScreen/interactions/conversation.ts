@@ -1,5 +1,5 @@
 import { byteCountToGb, bytesPerMsecToGbPerSec } from "@/common/memoryUtil";
-import { GpuAllocationStatus } from "../memoryTest";
+import MemoryTestStatus from "@/worker/types/MemoryTestStatus";
 
 const messages = [
   `I'm going to test the video memory on your device.`,
@@ -96,14 +96,14 @@ let startConversationTime = Date.now();
 let lastAllocatedSize = 0;
 const TIME_PER_LINE = 4000;
 
-function _replaceVariables(message:string, gpuAllocationStatus:GpuAllocationStatus):string {
+function _replaceVariables(message:string, memoryTestStatus:MemoryTestStatus):string {
   if (!message.includes('{')) return message; // No variables to replace, return as is.
 
-  const allocatedGb = byteCountToGb(gpuAllocationStatus.totalAllocatedSize);
-  const availableStorageGb = byteCountToGb(gpuAllocationStatus.availableStorage);
-  const slowestCopyRate = bytesPerMsecToGbPerSec(gpuAllocationStatus.slowestCopyRate);
-  const fastestCopyRate = bytesPerMsecToGbPerSec(gpuAllocationStatus.fastestCopyRate);
-  const averageCopyRate = bytesPerMsecToGbPerSec(gpuAllocationStatus.averageCopyRate);
+  const allocatedGb = byteCountToGb(memoryTestStatus.totalAllocatedSize);
+  const availableStorageGb = byteCountToGb(memoryTestStatus.availableStorage);
+  const slowestCopyRate = bytesPerMsecToGbPerSec(memoryTestStatus.slowestCopyRate);
+  const fastestCopyRate = bytesPerMsecToGbPerSec(memoryTestStatus.fastestCopyRate);
+  const averageCopyRate = bytesPerMsecToGbPerSec(memoryTestStatus.averageCopyRate);
 
   let m = message;
   m = m.replaceAll('{ALLOCATED_GB}', '' + allocatedGb);
@@ -115,21 +115,21 @@ function _replaceVariables(message:string, gpuAllocationStatus:GpuAllocationStat
   return m;
 }
 
-export function getMessage(gpuAllocationStatus:GpuAllocationStatus):string {
+export function getMessage(memoryTestStatus:MemoryTestStatus):string {
   if (lastAllocatedSize === 0) {
-    if (gpuAllocationStatus.totalAllocatedSize > 0) startConversationTime = Date.now(); // Set start time now to avoid showing messages during memory test setup.
-    lastAllocatedSize = gpuAllocationStatus.totalAllocatedSize;
-    return _replaceVariables(messages[0], gpuAllocationStatus);
+    if (memoryTestStatus.totalAllocatedSize > 0) startConversationTime = Date.now(); // Set start time now to avoid showing messages during memory test setup.
+    lastAllocatedSize = memoryTestStatus.totalAllocatedSize;
+    return _replaceVariables(messages[0], memoryTestStatus);
   }
 
   const elapsedTime = Date.now() - startConversationTime;
-  const totalAllocatedSize = gpuAllocationStatus.totalAllocatedSize;
+  const totalAllocatedSize = memoryTestStatus.totalAllocatedSize;
   lastAllocatedSize = totalAllocatedSize;
 
   const nextMessageNo = Math.floor(elapsedTime / TIME_PER_LINE);
 
   if (nextMessageNo >= messages.length) return ``;
-  return _replaceVariables(messages[nextMessageNo], gpuAllocationStatus);
+  return _replaceVariables(messages[nextMessageNo], memoryTestStatus);
 }
 
 export function resetConversation():void {
@@ -137,6 +137,6 @@ export function resetConversation():void {
   lastAllocatedSize = 0;
 }
 
-export function getFinalMessage(_gpuAllocationStatus:GpuAllocationStatus):string {
+export function getFinalMessage():string {
   return `Anyhow... we're done testing!`;
 }

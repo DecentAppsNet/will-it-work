@@ -25,6 +25,19 @@ export function formatByteCount(byteCount:number):string {
   else return `${byteCountToGb(byteCount)} GB`;
 }
 
+// Returns a pseudorandom and reproducible value. Useful for writing values to a buffer that resist memory compression.
+export function randomishMemoryValue(offset:number):number {
+  let x = offset >>> 0;
+  x ^= x >> 17;
+  x *= 0xed5ad4bb;
+  x ^= x >> 11;
+  x *= 0xac4c1b51;
+  x ^= x >> 15;
+  x *= 0x31848bab;
+  x ^= x >> 14;
+  return x & 0xFF;
+}
+
 type NullableNumber = number | null;
 let availableSystemMemoryOverride:NullableNumber = null;
 
