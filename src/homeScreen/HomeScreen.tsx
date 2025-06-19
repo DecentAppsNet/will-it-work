@@ -9,13 +9,17 @@ import { setScreen } from "@/router/Router";
 import MemoryTestScreen from "@/memoryTestScreen/MemoryTestScreen";
 import CategoryCheckInfo from "./types/CategoryCheckInfo";
 import { createAppUrl } from "@/common/urlUtil";
+import BetaWarningDialog from "./dialogs/BetaWarningDialog";
 
 let firstVisitComplete = false;
+
+const BETA_ACKNOWLEDGEMENT_KEY = 'WiW-betaWarningAcknowledged';
 
 function HomeScreen() {
   const [categories, setCategories] = useState<CategoryCheckInfo[]>([]);
   const [isMemoryTestDisabled, setIsMemoryTestDisabled] = useState<boolean>(false);
   const [fromAppName, setFromAppName] = useState<string|null>(null);
+  const [modalDialogName, setModalDialogName] = useState<string|null>(null);
   
   useEffect(() => {
     init().then((initResults) => {
@@ -32,6 +36,7 @@ function HomeScreen() {
           if (i === categoryChecks.length - 1) firstVisitComplete = true;
         }, (i + 1) * 600);
       }
+      if (!localStorage.getItem(BETA_ACKNOWLEDGEMENT_KEY)) setModalDialogName(BetaWarningDialog.name);
     });
   }, []);
 
@@ -71,6 +76,11 @@ function HomeScreen() {
       <div className={styles.footer}>
         {footerContent}
       </div>
+
+      <BetaWarningDialog isOpen={modalDialogName === BetaWarningDialog.name} onConfirm={() => {
+        localStorage.setItem(BETA_ACKNOWLEDGEMENT_KEY, 'x');
+        setModalDialogName(null);
+      }} />
     </div>
   );
 }
