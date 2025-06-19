@@ -79,7 +79,7 @@ export async function testMemory(maxAttemptSize:number, onMemoryTestStatus:Memor
       return status;
     }
     const maxBufferAllocation = adapter.limits.maxBufferSize;
-    const allocChunkSize = Math.min(maxBufferAllocation, GIGABYTE); // Balancing efficiency with useful granularity of measured result.    
+    const allocChunkSize = Math.min(maxBufferAllocation, GIGABYTE / 8); // Balancing efficiency with useful granularity of measured result.    
     const device = await adapter.requestDevice({ requiredLimits: { maxBufferSize:allocChunkSize } });
     if (!device) {
       status.code = MemoryTestStatusCode.DEVICE_NOT_AVAILABLE;
