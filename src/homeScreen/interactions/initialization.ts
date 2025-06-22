@@ -6,11 +6,23 @@ import { applyTestOverrides } from "@/developer/devEnvUtil";
 import { resetConversation } from "@/memoryTestScreen/interactions/conversation";
 import { getDeviceCapabilities } from "@/persistence/deviceCapabilities";
 import MemoryTestStatusCode from "@/worker/types/MemoryTestStatusCode";
+import { deleteOldLogMessages, log } from "@/persistence/localLog";
+
+const LOG_RETENTION_DAYS = 7;
 
 export type InitResults = {
   categoryChecks:CategoryCheckInfo[],
   disableMemoryTest:boolean,
   fromAppName:string|null
+}
+
+function _getRenderer():string|null {
+  const canvas = document.createElement('canvas');
+  const gl = canvas.getContext('webgl');
+  if (!gl) return null;
+  const ext = gl.getExtension('WEBGL_debug_renderer_info');
+  if (!ext) return null;
+  return gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) || null;
 }
 
 function _checkBrowserFeatures():CategoryCheckInfo {
@@ -23,6 +35,9 @@ function _checkBrowserFeatures():CategoryCheckInfo {
     hasWasm ? `WebAssembly is supported` : `WebAssembly is not supported`,
     hasStorageApi ? `Storage API is supported` : `Storage API is not supported`
   ];
+
+  const renderer = _getRenderer();
+  if (renderer) subItems.push(`Video Card: ${renderer}`);
 
   const status = hasWebGpu && hasWasm && hasStorageApi ? "success" : "failed";
   const summary = status === 'failed' 
@@ -153,6 +168,16 @@ async function _checkGpuMemory(areBrowserFeaturesAvailable:boolean, isEnoughDisk
   };
 }
 
+function _logCategoryCheck(categoryCheck:CategoryCheckInfo):void {
+  const logText = `${categoryCheck.summary} (${categoryCheck.status})\n` +
+    categoryCheck.subItems.map(item => `  - ${item}`).join('\n');
+  log(logText);
+}
+
+function _logCategoryChecks(categoryChecks:CategoryCheckInfo[]):void {
+  categoryChecks.forEach(check => _logCategoryCheck(check));
+}
+
 let isInitializing = false;
 export async function init():Promise<InitResults|null> {
   if (isInitializing) return null;
@@ -161,6 +186,7 @@ export async function init():Promise<InitResults|null> {
     const categoryChecks:CategoryCheckInfo[] = [];
 
     applyTestOverrides(); // Apply developer overrides of system metrics if they've been set in querystring.
+    deleteOldLogMessages(LOG_RETENTION_DAYS); // Delete old log messages to keep storage usage down.
     resetConversation();
 
     const browserFeaturesCheck = _checkBrowserFeatures();
@@ -172,6 +198,7 @@ export async function init():Promise<InitResults|null> {
     categoryChecks.push(browserFeaturesCheck);
     categoryChecks.push(diskSpaceCheck);
     categoryChecks.push(gpuMemoryCheck);
+    _logCategoryChecks(categoryChecks);
 
     const fromAppName = new URLSearchParams(window.location.search).get('fromAppName') || null;
 

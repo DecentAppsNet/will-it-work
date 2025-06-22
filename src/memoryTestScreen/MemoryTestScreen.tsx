@@ -4,13 +4,13 @@ import TopBar from '@/components/topBar/TopBar';
 import styles from './MemoryTestScreen.module.css';
 import ContentButton from '@/components/contentButton/ContentButton';
 import ProgressBar from '@/components/progressBar/ProgressBar';
-import { runTest, continueAfterTestCompletion, cancelTest } from './interactions/test';
+import { runTest, continueAfterTestCompletion, cancelTest, logStatus } from './interactions/test';
 import { byteCountToGb } from '@/common/memoryUtil';
 import { getFinalMessage, getMessage } from './interactions/conversation';
 import MemoryTestStatus from '@/worker/types/MemoryTestStatus';
 import { isResolvedStatusCode } from '@/worker/types/MemoryTestStatusCode';
 
-const MESSAGE_CHECK_INTERVAL_MS = 200;
+const MESSAGE_CHECK_INTERVAL_MS = 500;
 
 function MemoryTestScreen() {
   const [frameNo, setFrameNo] = useState<number>(0);
@@ -20,6 +20,7 @@ function MemoryTestScreen() {
 
   function _onNextStatus(status:MemoryTestStatus) {
     setMemoryTestStatus(status);
+    logStatus(status);
     if (isResolvedStatusCode(status.code)) continueAfterTestCompletion(status, _setHasCompleted);
   }
 

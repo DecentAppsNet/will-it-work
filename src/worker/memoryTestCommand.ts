@@ -36,6 +36,7 @@ function _isBufferMapped(buffer:GPUBuffer):boolean {
 }
 
 function _updateCopyRateMetrics(newCopyRate:number, copyRates:number[], status:MemoryTestStatus):void {
+  newCopyRate = Math.round(newCopyRate);
   copyRates.push(newCopyRate);
   if (copyRates.length === 1) {
     status.slowestCopyRate = status.fastestCopyRate = newCopyRate;
@@ -71,7 +72,6 @@ export async function testMemory(maxAttemptSize:number, onMemoryTestStatus:Memor
       return status;
     }
 
-    // Get adapter and device.
     const adapter = await gpu.requestAdapter();
     if (!adapter) {
       status.code = MemoryTestStatusCode.ADAPTER_NOT_AVAILABLE;
@@ -87,7 +87,6 @@ export async function testMemory(maxAttemptSize:number, onMemoryTestStatus:Memor
       return status;
     }
 
-    // Allocate read-back buffer.
     const readBackBuffer = _allocReadBackBuffer(device, allocChunkSize, status);
     if (!readBackBuffer) { onMemoryTestStatus(status); return status; }
     allBuffers.push(readBackBuffer);
@@ -103,8 +102,6 @@ export async function testMemory(maxAttemptSize:number, onMemoryTestStatus:Memor
     
     let bufferNo = 0;
     while(status.totalAllocatedSize < maxAttemptSize) {
-      console.log(status);
-
       // Check if we're getting low on disk storage, perhaps as a consequence of allocating via unified memory architecture into virtual memory.
       status.availableStorage = await estimateAvailableStorage();
       if (status.availableStorage < OS_VIRTUAL_MEMORY_BUFFER) {
@@ -115,7 +112,11 @@ export async function testMemory(maxAttemptSize:number, onMemoryTestStatus:Memor
 
       // Allocate the buffer.
       const testBuffer = _allocTestBuffer(device, allocChunkSize, ++bufferNo, status);
-      if (!testBuffer) { onMemoryTestStatus(status); return status; }
+      if (!testBuffer) { 
+        status.code = MemoryTestStatusCode.ALLOCATION_FAILED;
+        status.errorInfo = `Failed to allocate buffer #${bufferNo} of size ${allocChunkSize}.`;
+        break;
+      }
       allBuffers.push(testBuffer);
       
       // Write across entire buffer to detect virtual memory page faults.
@@ -158,10 +159,10 @@ export async function testMemory(maxAttemptSize:number, onMemoryTestStatus:Memor
         }
         break;
       }
+      _updateCopyRateMetrics(Math.round(allocChunkSize / copyTime), copyRates, status);
 
       // If copy takes too long, I'm likely using virtual memory with an integrated GPU. Not necessarily a problem, 
       // but it it's too slow, we should stop and use the total for memory that was accessed faster.
-      _updateCopyRateMetrics(allocChunkSize / copyTime, copyRates, status);
       if (copyTime > REASONABLE_RAM_COPY_TIME_MS) {
         status.code = MemoryTestStatusCode.COPY_TOO_SLOW;
         status.errorInfo = `Copy took too long (${copyTime} ms for ${allocChunkSize} bytes).`;
@@ -187,8 +188,7 @@ export async function testMemory(maxAttemptSize:number, onMemoryTestStatus:Memor
 
       if (onMemoryTestCancel()) {
         status.code = MemoryTestStatusCode.USER_CANCELED;
-        onMemoryTestStatus(status);
-        return status;
+        break;
       }
     }
 

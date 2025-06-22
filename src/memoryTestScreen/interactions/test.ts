@@ -8,6 +8,7 @@ import { cancelMemoryTest, startMemoryTest } from "@/worker/api";
 import MemoryTestStatusCallback from "@/worker/types/MemoryTestStatusCallback";
 import MemoryTestStatus from "@/worker/types/MemoryTestStatus";
 import MemoryTestStatusCode, { isResolvedStatusCode } from "@/worker/types/MemoryTestStatusCode";
+import { log } from "@/persistence/localLog";
 
 let isRunning = false;
 
@@ -44,4 +45,11 @@ export async function continueAfterTestCompletion(status:MemoryTestStatus, setHa
   await wait(3000); // Wait a bit more to let the user see the final message.
   
   setScreen(HomeScreen.name);
+}
+
+export function logStatus(status:MemoryTestStatus):void {
+  log(`Memory test status: code=${status.code}, totalAllocatedSize=${status.totalAllocatedSize}, ` +
+      `availableStorage=${status.availableStorage}, maxAttemptSize=${status.maxAttemptSize}, ` +
+      `slowestCopyRate=${status.slowestCopyRate}, averageCopyRate=${status.averageCopyRate}, ` +
+      `fastestCopyRate=${status.fastestCopyRate}, errorInfo=${status.errorInfo || 'none'}`, true);
 }
